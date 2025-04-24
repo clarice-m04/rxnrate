@@ -1,66 +1,81 @@
-from sympy import symbols, Function, Symbol
+from sympy import symbols, Function, Symbol, Eq, Derivative, dsolve, integrate, simplify
 
-""""
-    Builds ODEs for a single reaction and includes initial concentrations.
-    Handles symbolic/string or numeric rate constants and initial values.
-    
-    Arguments:
-        reactants: List of reactant species (e.g., ['A', 'B']).
-        products: List of product species (e.g., ['C']).
-        k: Rate constant, can be a string or a numeric value.
-        t: SymPy symbol for time (to be prettier).
-        initial_conditions: dictionary mapping species to initial concentrations (string or numeric).
-    
-    Returns:
-        A dictionary with keys:
-            'odes': symbolic ODEs
-            'initial_conditions': symbolic or numeric initial values
-            'species': list of symbolic concentration functions
-    """
-
-def build_simple_reaction_odes_flexible(
+def solve_reaction_system(
     reactants: list[str], 
     products: list[str], 
-    k,  # can be a string (like k_1, k_2 i.e. symbolic) or a number (float/int)
+    k,  # symbolic or numeric rate constant
     t: Symbol, 
-    initial_conditions: dict[str, float]  # values can be strings (like a_0, b_0 etc i.e. symbolic) or numeric (float)
+    initial_conditions: dict[str, float]
 ):
+    """
+    Solves a system of reactions automatically:
+    1. Builds ODEs for the reaction
+    2. Solves using Laplace Transforms
+    3. Computes necessary integrals (e.g., for reactions like A + B -> C)
     
-    # Handle string/symbolic or numeric rate constant
+    Args:
+        reactants: List of reactant species (e.g., ['A', 'B']).
+        products: List of product species (e.g., ['C']).
+        k: Rate constant, can be a symbolic string or numeric value.
+        t: SymPy symbol for time.
+        initial_conditions: dictionary of initial concentrations.
+    
+    Returns:
+        A dictionary with:
+            - 'solutions': Solved ODEs for each species
+            - 'integrals': Evaluated integrals for the reaction
+    """
+    
+    # Handle rate constant (symbolic or numeric)
     k_sym = symbols(k) if isinstance(k, str) else k
 
-    # All species in the reaction
+    # Define all species (reactants + products)
     all_species = sorted(set(reactants + products))
     conc_funcs = {s: Function(s)(t) for s in all_species}
-    
-    # Build rate expression
+
+    # Build the rate law: rate = k * A * B (for a generic reaction A + B -> C)
     rate = k_sym
     for r in reactants:
         rate *= conc_funcs[r]
 
-    # Build ODEs
+    # Build ODEs (rate of change of concentration)
     odes = {}
     for s in all_species:
         if s in reactants:
-            odes[s] = -rate
+            odes[s] = -rate  # Consumption of reactants
         elif s in products:
-            odes[s] = rate
+            odes[s] = rate  # Formation of products
         else:
-            odes[s] = 0
+            odes[s] = 0  # Other species (not part of the reaction)
 
-    # Handle symbolic or numeric initial values
+    # Handle initial concentrations (symbolic or numeric)
     init_vals = {}
     for s in all_species:
         val = initial_conditions.get(s, 0.0)
         init_vals[s] = symbols(val) if isinstance(val, str) else val
 
+    # Step 1: Solve ODEs using Laplace transforms
+    solutions = {}
+    for func in conc_funcs.values():
+        name = str(func.func)
+        eq = Eq(Derivative(func, t), odes[name])  # Create the ODE
+        ics = {func.subs(t, 0): init_vals[name]}  # Initial condition for t=0
+        sol = dsolve(eq, func, ics=ics, method='laplace')  # Solve the ODE
+        solutions[func] = sol.rhs  # Store the solution
+
+    # Step 2: Compute integrals (e.g., ∫ A(t) * B(t) dt)
+    integrals = {}
+    for i, func_1 in enumerate(conc_funcs.values()):
+        for func_2 in list(conc_funcs.values())[i + 1:]:
+            # Compute integral if both species appear in the reaction
+            A_t = solutions[func_1]
+            B_t = solutions[func_2]
+            integrand = k_sym * A_t * B_t  # Rate * A(t) * B(t)
+            integral_expr = integrate(integrand, (t, 0, t))  # ∫ A(t)B(t) dt if necessary
+            integrals[(str(func_1.func), str(func_2.func))] = simplify(integral_expr)
+
     return {
-        "odes": odes,
-        "initial_conditions": init_vals,
-        "species": [conc_funcs[s] for s in all_species]
+        "solutions": solutions,
+        "integrals": integrals
     }
-t = symbols('t')
-# Example usage with mixed symbolic or string/numeric input: flex is what makes it be both
-initials_flex = {'A': 'a_0', 'B': 2.0, 'C': 0.0}
-flex_odes = build_simple_reaction_odes_flexible(['A', 'B'], ['C'], 'k1', t, initials_flex)
-print(flex_odes)
+
