@@ -1,5 +1,6 @@
 from sympy import symbols, Function, Symbol
-"""
+
+""""
     Builds ODEs for a single reaction and includes initial concentrations.
     Handles symbolic/string or numeric rate constants and initial values.
     
@@ -58,8 +59,8 @@ def build_simple_reaction_odes_flexible(
         "initial_conditions": init_vals,
         "species": [conc_funcs[s] for s in all_species]
     }
-
+t = symbols('t')
 # Example usage with mixed symbolic or string/numeric input: flex is what makes it be both
 initials_flex = {'A': 'a_0', 'B': 2.0, 'C': 0.0}
 flex_odes = build_simple_reaction_odes_flexible(['A', 'B'], ['C'], 'k1', t, initials_flex)
-flex_odes
+print(flex_odes)
