@@ -1,0 +1,13 @@
+name: rxnrate_env
+channels:
+  - conda-forge
+  - rdkit
+dependencies:
+  - python=3.11
+  - rdkit
+  - numpy
+  - pandas
+  - matplotlib
+  - jupyter
+  - ipykernel
+  - pytest
