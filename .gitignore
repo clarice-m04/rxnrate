@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Conda environment files
+env/
+.rxnrate_env/
+
+# VS Code
+.vscode/
+
+# OS-generated
+.DS_Store
+
+# Environments and caches
+*.egg-info/
+.env/
+*.log
+
+# Pytest cache
+.pytest_cache/
